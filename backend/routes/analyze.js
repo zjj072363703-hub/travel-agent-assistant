@@ -88,7 +88,7 @@ ${text}
 });
 
 // ============ POST /api/analyze-image ============
-// MiniMax 视觉模型分析微信截图
+// 单张图片分析
 router.post('/analyze-image', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -146,6 +146,79 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
   } finally {
     if (req.file && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch {}
+    }
+  }
+});
+
+// ============ POST /api/analyze-images ============
+// 长截图/多图分析 — 支持多张图片一起发送
+router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: '请上传至少一张图片' });
+    }
+
+    const client = getOpenAIClient();
+
+    // 构建多图内容
+    const content = req.files.map(file => {
+      const buf = fs.readFileSync(file.path);
+      const b64 = buf.toString('base64');
+      return { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } };
+    });
+
+    const imgCount = req.files.length;
+    const prompt = `你是一个旅游咨询分析助手。现在有${imgCount}张微信聊天截图（属于同一段对话的连续截图），请按顺序识别并提取所有聊天内容，合并为完整的对话记录，然后输出结构化分析结果。
+
+注意：
+- 截图可能来自同一对话的不同位置，请完整读取所有文字
+- 如果多张图是同一个人发的连续消息，也要读取
+- 请综合所有截图信息，输出完整分析
+
+请以JSON格式返回（如果无法确定某字段，填null）：
+{
+  "destination": "想去去的旅游目的地，如张家界、凤凰古城等",
+  "people_count": "出行人数，如2大1小、5人、团队等",
+  "travel_date": "计划出行日期，如5月1日、下周末等",
+  "budget": "预算范围，如3000-5000元、5000元左右",
+  "objections": "客户表达的疑虑或担忧，如价格太高、时间不确定等",
+  "chat_summary": "从截图中提取的完整对话要点（按时间顺序）",
+  "summary": "一段话总结客户咨询的核心需求"
+}`;
+
+    content.push({ type: 'text', text: prompt });
+
+    const completion = await client.chat.completions.create({
+      model: 'moonshot-vl-32k',
+      messages: [{ role: 'user', content }],
+      temperature: 0.3
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+    const cleaned = raw.trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = { error: '解析AI响应失败', raw };
+    }
+
+    parsed.image_count = imgCount;
+    res.json(parsed);
+
+  } catch (err) {
+    console.error('analyze-images error:', err.message);
+    res.status(500).json({ error: '长截图分析失败: ' + err.message });
+  } finally {
+    if (req.files) {
+      for (const f of req.files) {
+        try { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch {}
+      }
     }
   }
 });

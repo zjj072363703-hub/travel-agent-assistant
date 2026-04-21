@@ -13,6 +13,8 @@ export default function App() {
   const [deepResult, setDeepResult] = useState(null)
   const [deepText, setDeepText] = useState('')
   const [deepLoading, setDeepLoading] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState([])
+  const fileRef = useRef()
   const [customers, setCustomers] = useState([])
   const [stats, setStats] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
@@ -68,13 +70,15 @@ export default function App() {
   }
 
   async function handleImageUpload(e) {
-    const file = e.target.files[0]
-    if (!file) return
+    const files = Array.from(e.target.files)
+    if (!files.length) return
     setLoading(true)
-    const formData = new FormData()
-    formData.append('image', file)
+    setResult(null)
     try {
-      const res = await fetch(`${API}/api/analyze-image`, { method: 'POST', body: formData })
+      const formData = new FormData()
+      files.forEach(f => formData.append('images', f))
+      const endpoint = files.length > 1 ? '/api/analyze-images' : '/api/analyze-image'
+      const res = await fetch(`${API}${endpoint}`, { method: 'POST', body: formData })
       const data = await res.json()
       setResult(data)
     } catch (e) { setResult({ error: e.message }) }
@@ -176,12 +180,13 @@ export default function App() {
 
             {tab === 'image' && (
               <div style={{ background: '#1e293b', borderRadius: 14, padding: 28, border: '1px solid #334155' }}>
-                <p style={{ color: '#94a3b8', marginBottom: 16 }}>上传微信聊天截图，AI 自动识别客户需求</p>
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                <p style={{ color: '#94a3b8', marginBottom: 16 }}>上传微信聊天截图（支持长截图/多张图）</p>
+                <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
                 <button onClick={() => fileRef.current.click()} disabled={loading}
                   style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
                   {loading ? '分析中...' : '📤 上传截图'}
                 </button>
+                <p style={{ color: '#64748b', fontSize: 12, marginTop: 10 }}>支持单图或一次性上传多张（长截图）</p>
               </div>
             )}
 
