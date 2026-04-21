@@ -113,7 +113,7 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
 }`;
 
     const completion = await client.chat.completions.create({
-      model: 'moonshot-vl-32k',
+      model: 'moonshot-v1-8k-vision-preview',
       messages: [{
         role: 'user',
         content: [
@@ -189,7 +189,7 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
     content.push({ type: 'text', text: prompt });
 
     const completion = await client.chat.completions.create({
-      model: 'moonshot-vl-32k',
+      model: 'moonshot-v1-8k-vision-preview',
       messages: [{ role: 'user', content }],
       temperature: 0.3
     });
