@@ -150,4 +150,68 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
   }
 });
 
+// ============ POST /api/analyze-chat ============
+// 深度聊天分析：优缺点 + 改进方法
+router.post('/analyze-chat', async (req, res) => {
+  try {
+    const { chat } = req.body;
+
+    if (!chat || chat.trim().length < 10) {
+      return res.status(400).json({ error: '请提供有效的聊天记录（至少10个字符）' });
+    }
+
+    const client = getOpenAIClient();
+
+    const prompt = `你是旅游行业顶级销售培训专家。请深度分析以下客服与客户的微信聊天记录。
+
+聊天记录：
+${chat}
+
+请严格以JSON格式返回，不要有任何额外文字：
+{
+  "summary": "聊天概要：客户需求是什么，成交概率多大（0-100%），用一句话概括",
+  "score": 85,
+  "strengths": ["优点1","优点2","优点3"],
+  "weaknesses": ["缺点1","缺点2","缺点3"],
+  "improvements": [
+    {
+      "point": "改进点描述",
+      "from": "原来的做法/说法",
+      "to": "应该这样做/说",
+      "reason": "为什么这样改更好"
+    }
+  ],
+  "recommended_script": "如果重新聊，推荐使用的下一句完美开场白（40字以内，专业自信，推进成交）",
+  "customer_type": "客户性格类型判断",
+  "closing_probability": "高/中/低"
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'moonshot-kimi-k2.5',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+    const cleaned = raw.trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return res.status(200).json({ summary: raw, raw_text: chat });
+    }
+
+    res.json({ ...parsed, raw_text: chat });
+
+  } catch (err) {
+    console.error('analyze-chat error:', err.message);
+    res.status(500).json({ error: '深度分析失败: ' + err.message });
+  }
+});
+
 module.exports = router;

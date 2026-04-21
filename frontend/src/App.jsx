@@ -10,6 +10,9 @@ export default function App() {
   const [chatText, setChatText] = useState('')
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [deepResult, setDeepResult] = useState(null)
+  const [deepText, setDeepText] = useState('')
+  const [deepLoading, setDeepLoading] = useState(false)
   const [customers, setCustomers] = useState([])
   const [stats, setStats] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
@@ -47,6 +50,21 @@ export default function App() {
       setResult(data)
     } catch (e) { setResult({ error: e.message }) }
     setLoading(false)
+  }
+
+  async function handleDeepAnalyze() {
+    if (!deepText.trim()) return
+    setDeepLoading(true)
+    try {
+      const res = await fetch(`${API}/api/analyze-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat: deepText })
+      })
+      const data = await res.json()
+      setDeepResult(data)
+    } catch (e) { setDeepResult({ error: e.message }) }
+    setDeepLoading(false)
   }
 
   async function handleImageUpload(e) {
@@ -148,8 +166,8 @@ export default function App() {
           <div>
             <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>AI 智能分析</h2>
             <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {[['📸 截图分析', 'image'], ['💬 文字分析', 'text']].map(([label, t]) => (
-                <button key={t} onClick={() => { setTab(t); setResult(null) }}
+              {[['📸 截图分析', 'image'], ['💬 文字分析', 'text'], ['🎯 深度分析', 'deep']].map(([label, t]) => (
+                <button key={t} onClick={() => { setTab(t); setResult(null); setDeepResult(null) }}
                   style={{ background: tab === t ? '#38bdf8' : '#1e293b', color: tab === t ? '#0f172a' : '#94a3b8', border: '1px solid ' + (tab === t ? '#38bdf8' : '#334155'), padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
                   {label}
                 </button>
@@ -177,6 +195,81 @@ export default function App() {
                   style={{ marginTop: 12, background: loading ? '#1e3a5f' : '#38bdf8', color: '#0f172a', border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer' }}>
                   {loading ? '分析中...' : '🚀 AI 分析'}
                 </button>
+              </div>
+            )}
+
+            {tab === 'deep' && (
+              <div style={{ background: '#1e293b', borderRadius: 14, padding: 28, border: '1px solid #334155' }}>
+                <p style={{ color: '#94a3b8', marginBottom: 16 }}>粘贴完整聊天记录，AI 深度分析优缺点并给出改进方法</p>
+                <textarea value={deepText} onChange={e => setDeepText(e.target.value)} rows={8}
+                  placeholder="粘贴客服与客户的完整聊天记录..."
+                  style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#fff', padding: 12, fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+                <button onClick={handleDeepAnalyze} disabled={deepLoading || !deepText.trim()}
+                  style={{ marginTop: 12, background: deepLoading ? '#1e3a5f' : '#f59e0b', color: deepLoading ? '#94a3b8' : '#0f172a', border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: deepLoading ? 'not-allowed' : 'pointer' }}>
+                  {deepLoading ? '分析中...' : '🎯 深度分析'}
+                </button>
+              </div>
+            )}
+
+            {/* Deep Result */}
+            {deepResult && !deepResult.error && (
+              <div style={{ marginTop: 20 }}>
+                <div style={{ background: '#1e293b', borderRadius: 14, padding: 24, border: '1px solid #f59e0b40', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ color: '#f59e0b', margin: 0 }}>🎯 深度分析报告</h3>
+                    <span style={{ background: '#f59e0b', color: '#0f172a', padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
+                      评分 {deepResult.score}/100
+                    </span>
+                  </div>
+                  <p style={{ color: '#94a3b8', margin: '0 0 8px', fontSize: 13 }}>📋 {deepResult.summary}</p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <span style={{ background: deepResult.closing_probability === '高' ? '#10b98130' : deepResult.closing_probability === '中' ? '#f59e0b30' : '#ef444430', color: deepResult.closing_probability === '高' ? '#10b981' : deepResult.closing_probability === '中' ? '#f59e0b' : '#ef4444', padding: '3px 10px', borderRadius: 20, fontSize: 12 }}>
+                      成交概率：{deepResult.closing_probability}
+                    </span>
+                    <span style={{ background: '#334155', color: '#94a3b8', padding: '3px 10px', borderRadius: 20, fontSize: 12 }}>
+                      客户类型：{deepResult.customer_type}
+                    </span>
+                  </div>
+                </div>
+
+                {deepResult.strengths?.length > 0 && (
+                  <div style={{ background: '#1e293b', borderRadius: 14, padding: 20, border: '1px solid #10b98140', marginBottom: 12 }}>
+                    <h4 style={{ color: '#10b981', margin: '0 0 12px' }}>✅ 优点</h4>
+                    {deepResult.strengths.map((s, i) => (
+                      <div key={i} style={{ color: '#d1fae5', fontSize: 14, marginBottom: 6 }}>• {s}</div>
+                    ))}
+                  </div>
+                )}
+
+                {deepResult.weaknesses?.length > 0 && (
+                  <div style={{ background: '#1e293b', borderRadius: 14, padding: 20, border: '1px solid #ef444440', marginBottom: 12 }}>
+                    <h4 style={{ color: '#ef4444', margin: '0 0 12px' }}>❌ 缺点</h4>
+                    {deepResult.weaknesses.map((w, i) => (
+                      <div key={i} style={{ color: '#fecaca', fontSize: 14, marginBottom: 6 }}>• {w}</div>
+                    ))}
+                  </div>
+                )}
+
+                {deepResult.improvements?.length > 0 && (
+                  <div style={{ background: '#1e293b', borderRadius: 14, padding: 20, border: '1px solid #38bdf840', marginBottom: 12 }}>
+                    <h4 style={{ color: '#38bdf8', margin: '0 0 12px' }}>📝 改进方法</h4>
+                    {deepResult.improvements.map((imp, i) => (
+                      <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < deepResult.improvements.length - 1 ? '1px solid #334155' : 'none' }}>
+                        <div style={{ color: '#f59e0b', fontSize: 14, fontWeight: 600 }}>{imp.point}</div>
+                        <div style={{ marginTop: 6, fontSize: 13 }}><span style={{ color: '#ef4444' }}>❌ 原来：</span>{imp.from}</div>
+                        <div style={{ fontSize: 13 }}><span style={{ color: '#10b981' }}>✅ 改进：</span>{imp.to}</div>
+                        <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>💡 {imp.reason}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {deepResult.recommended_script && (
+                  <div style={{ background: 'linear-gradient(135deg, #1e293b, #0f3728)', borderRadius: 14, padding: 20, border: '1px solid #10b98140' }}>
+                    <h4 style={{ color: '#10b981', margin: '0 0 8px' }}>💬 推荐下一句完美话术</h4>
+                    <p style={{ color: '#fbbf24', fontSize: 16, fontWeight: 600, margin: 0 }}>{deepResult.recommended_script}</p>
+                  </div>
+                )}
               </div>
             )}
 
