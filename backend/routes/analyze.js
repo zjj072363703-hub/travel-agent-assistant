@@ -1,0 +1,153 @@
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const OpenAI = require('openai');
+
+const router = express.Router();
+
+// ============ MiniMax / Kimi API Client ============
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.KIMI_API_KEY || '',
+    baseURL: 'https://api.moonshot.cn/v1'
+  });
+}
+
+// ============ Image Upload Config ============
+const upload = multer({
+  dest: path.join(__dirname, '..', 'uploads'),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('只支持图片文件'));
+  }
+});
+
+// Ensure uploads dir
+fs.mkdirSync(path.join(__dirname, '..', 'uploads'), { recursive: true });
+
+// ============ POST /api/analyze-text ============
+// TourBoost 销售专家视角
+router.post('/analyze-text', async (req, res) => {
+  try {
+    const { text, destination, stage } = req.body;
+
+    if (!text || text.trim().length < 5) {
+      return res.status(400).json({ error: '请提供有效的聊天文字（至少5个字符）' });
+    }
+
+    const client = getOpenAIClient();
+
+    const prompt = `你是旅游行业顶级销售专家，负责提升客服成交率。
+
+分析以下微信聊天记录，提取信息并生成销售推进话术。
+
+聊天记录：
+${text}
+
+请以JSON格式返回（必须严格符合JSON格式，不要有任何额外文字）：
+{
+  "customer_type": "客户类型，如：价格敏感型、犹豫型、急性子、随和型、谨慎型等",
+  "destination": "目的地（如果聊天中未提及则填null）",
+  "people_count": "出行人数（如果未提及则填null）",
+  "travel_date": "计划出行日期（如果未提及则填null）",
+  "budget": "预算范围（如果未提及则填null）",
+  "objections": "客户的主要疑虑或担忧（如果没有则填null）",
+  "summary": "一段话总结客户的咨询需求",
+  "next_sentence": "下一句成交话术（必须推进成交，直接可用，30字以内，语气专业自信）",
+  "sales_tips": ["销售技巧1", "销售技巧2", "销售技巧3"]
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'moonshot-kimi-k2.5',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+    const cleaned = raw.trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return res.status(200).json({ summary: raw, raw_text: text });
+    }
+
+    res.json({ ...parsed, raw_text: text });
+
+  } catch (err) {
+    console.error('analyze-text error:', err.message);
+    res.status(500).json({ error: 'AI分析失败: ' + err.message });
+  }
+});
+
+// ============ POST /api/analyze-image ============
+// MiniMax 视觉模型分析微信截图
+router.post('/analyze-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: '请上传图片文件' });
+    }
+
+    const imageBuffer = fs.readFileSync(req.file.path);
+    const imageBase64 = imageBuffer.toString('base64');
+
+    const client = getOpenAIClient();
+
+    const prompt = `你是一个旅游咨询分析助手。请分析这张微信聊天截图，提取结构化信息。
+
+请以JSON格式返回（如果无法确定某字段，填null）：
+{
+  "destination": "想去去的旅游目的地，如张家界、凤凰古城等",
+  "people_count": "出行人数，如2大1小、5人、团队等",
+  "travel_date": "计划出行日期，如5月1日、下周末等",
+  "budget": "预算范围，如3000-5000元、5000元左右",
+  "objections": "客户表达的疑虑或担忧，如价格太高、时间不确定等",
+  "summary": "一段话总结客户咨询的核心需求"
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'moonshot-vl-32k',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+          { type: 'text', text: prompt }
+        ]
+      }],
+      temperature: 0.3
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+    const cleaned = raw.trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = { error: '解析AI响应失败', raw };
+    }
+
+    res.json(parsed);
+
+  } catch (err) {
+    console.error('analyze-image error:', err.message);
+    res.status(500).json({ error: '图片分析失败: ' + err.message });
+  } finally {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+  }
+});
+
+module.exports = router;
