@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('../frontend/dist'));
+app.use(express.static('static'));
 
 // Routes
 app.use('/api', analyzeRouter);

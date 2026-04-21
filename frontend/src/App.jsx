@@ -19,7 +19,6 @@ export default function App() {
   const [stats, setStats] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
-  const fileRef = useRef()
 
   useEffect(() => { if (view === 'customers') loadCustomers(); if (view === 'home' || view === 'customers') loadStats() }, [view])
 
