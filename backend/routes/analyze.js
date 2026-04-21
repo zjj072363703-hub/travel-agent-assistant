@@ -60,7 +60,7 @@ ${text}
 }`;
 
     const completion = await client.chat.completions.create({
-      model: 'moonshot-kimi-k2.5',
+      model: 'moonshot-v1-8k',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3
     });
@@ -260,7 +260,7 @@ ${chat}
 }`;
 
     const completion = await client.chat.completions.create({
-      model: 'moonshot-kimi-k2.5',
+      model: 'moonshot-v1-8k',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3
     });
