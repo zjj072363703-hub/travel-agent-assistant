@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const analyzeRouter = require('./routes/analyze');
 const customersRouter = require('./routes/customers');
@@ -12,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('static'));
+app.use(express.static(path.join(__dirname, 'static')));
 
 // Routes
 app.use('/api', analyzeRouter);
