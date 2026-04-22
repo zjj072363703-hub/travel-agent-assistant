@@ -9,7 +9,7 @@ const router = express.Router();
 // ============ MiniMax / Kimi API Client ============
 function getOpenAIClient() {
   return new OpenAI({
-    apiKey: process.env.KIMI_API_KEY || '',
+    apiKey: process.env.KIMI_API_KEY || 'sk-6bfquhqwFu7gu8biFxAwY88AxJWTJ8nTYhjO7i8ULpY6x5lu',
     baseURL: 'https://api.moonshot.cn/v1'
   });
 }

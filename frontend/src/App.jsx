@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const API = 'https://travel-agent-vxyp.onrender.com'
+const API = window.location.origin
 
 const STAGES = ['初询', '需求确认', '方案已发', '价格谈判', '成交', '已出行', '流失']
 
