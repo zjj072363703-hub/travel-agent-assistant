@@ -1,7 +1,5 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 const OpenAI = require('openai');
 
 const router = express.Router();
@@ -9,23 +7,20 @@ const router = express.Router();
 // ============ MiniMax / Kimi API Client ============
 function getOpenAIClient() {
   return new OpenAI({
-    apiKey: process.env.KIMI_API_KEY || 'sk-6bfquhqwFu7gu8biFxAwY88AxJWTJ8nTYhjO7i8ULpY6x5lu',
+    apiKey: process.env.KIMI_API_KEY,
     baseURL: 'https://api.moonshot.cn/v1'
   });
 }
 
-// ============ Image Upload Config ============
+// ============ Image Upload Config (内存存储，不落磁盘) ============
 const upload = multer({
-  dest: path.join(__dirname, '..', 'uploads'),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('只支持图片文件'));
   }
 });
-
-// Ensure uploads dir
-fs.mkdirSync(path.join(__dirname, '..', 'uploads'), { recursive: true });
 
 // ============ POST /api/analyze-text ============
 // TourBoost 销售专家视角
@@ -61,16 +56,31 @@ ${text}
 
     const completion = await client.chat.completions.create({
       model: 'moonshot-v1-8k',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
       temperature: 0.3
     });
 
     const raw = completion.choices[0]?.message?.content || '';
-    const cleaned = raw.trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    
+    // 精准截取 JSON 内容（处理 Kimi 可能添加的前缀/后缀）
+    let cleaned = raw.trim();
+    // 移除可能的 markdown 标记
+    cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '');
+    // 截取第一个 { 和最后一个 } 之间的内容
+    const startIndex = cleaned.indexOf('{');
+    const endIndex = cleaned.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleaned = cleaned.substring(startIndex, endIndex + 1);
+    }
 
     let parsed;
     try {
@@ -95,8 +105,8 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: '请上传图片文件' });
     }
 
-    const imageBuffer = fs.readFileSync(req.file.path);
-    const imageBase64 = imageBuffer.toString('base64');
+    const base64Data = req.file.buffer.toString('base64');
+    const imageUrl = `data:${req.file.mimetype};base64,${base64Data}`;
 
     const client = getOpenAIClient();
 
@@ -114,22 +124,37 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
 
     const completion = await client.chat.completions.create({
       model: 'moonshot-v1-8k-vision-preview',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
-          { type: 'text', text: prompt }
-        ]
-      }],
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: imageUrl } },
+            { type: 'text', text: prompt }
+          ]
+        }
+      ],
       temperature: 0.3
+    }, {
+      timeout: 60000,  // 60秒超时，防止视觉模型处理过慢
+      maxRetries: 1
     });
 
     const raw = completion.choices[0]?.message?.content || '';
-    const cleaned = raw.trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    
+    // 精准截取 JSON 内容（处理 Kimi 可能添加的前缀/后缀）
+    let cleaned = raw.trim();
+    // 移除可能的 markdown 标记
+    cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '');
+    // 截取第一个 { 和最后一个 } 之间的内容
+    const startIndex = cleaned.indexOf('{');
+    const endIndex = cleaned.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleaned = cleaned.substring(startIndex, endIndex + 1);
+    }
 
     let parsed;
     try {
@@ -143,10 +168,6 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
   } catch (err) {
     console.error('analyze-image error:', err.message);
     res.status(500).json({ error: '图片分析失败: ' + err.message });
-  } finally {
-    if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch {}
-    }
   }
 });
 
@@ -160,12 +181,11 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
 
     const client = getOpenAIClient();
 
-    // 构建多图内容
-    const content = req.files.map(file => {
-      const buf = fs.readFileSync(file.path);
-      const b64 = buf.toString('base64');
-      return { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${b64}` } };
-    });
+    // 构建多图内容（直接从内存buffer转base64）
+    const content = req.files.map(file => ({
+      type: 'image_url',
+      image_url: { url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}` }
+    }));
 
     const imgCount = req.files.length;
     const prompt = `你是一个旅游咨询分析助手。现在有${imgCount}张微信聊天截图（属于同一段对话的连续截图），请按顺序识别并提取所有聊天内容，合并为完整的对话记录，然后输出结构化分析结果。
@@ -190,16 +210,34 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
 
     const completion = await client.chat.completions.create({
       model: 'moonshot-v1-8k-vision-preview',
-      messages: [{ role: 'user', content }],
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+        },
+        {
+          role: 'user',
+          content: content
+        }
+      ],
       temperature: 0.3
+    }, {
+      timeout: 60000,  // 60秒超时，防止视觉模型处理过慢
+      maxRetries: 1
     });
 
     const raw = completion.choices[0]?.message?.content || '';
-    const cleaned = raw.trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    
+    // 精准截取 JSON 内容（处理 Kimi 可能添加的前缀/后缀）
+    let cleaned = raw.trim();
+    // 移除可能的 markdown 标记
+    cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '');
+    // 截取第一个 { 和最后一个 } 之间的内容
+    const startIndex = cleaned.indexOf('{');
+    const endIndex = cleaned.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleaned = cleaned.substring(startIndex, endIndex + 1);
+    }
 
     let parsed;
     try {
@@ -214,12 +252,6 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
   } catch (err) {
     console.error('analyze-images error:', err.message);
     res.status(500).json({ error: '长截图分析失败: ' + err.message });
-  } finally {
-    if (req.files) {
-      for (const f of req.files) {
-        try { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); } catch {}
-      }
-    }
   }
 });
 
@@ -261,16 +293,31 @@ ${chat}
 
     const completion = await client.chat.completions.create({
       model: 'moonshot-v1-8k',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        {
+          role: 'system',
+          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
       temperature: 0.3
     });
 
     const raw = completion.choices[0]?.message?.content || '';
-    const cleaned = raw.trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    
+    // 精准截取 JSON 内容（处理 Kimi 可能添加的前缀/后缀）
+    let cleaned = raw.trim();
+    // 移除可能的 markdown 标记
+    cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '');
+    // 截取第一个 { 和最后一个 } 之间的内容
+    const startIndex = cleaned.indexOf('{');
+    const endIndex = cleaned.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleaned = cleaned.substring(startIndex, endIndex + 1);
+    }
 
     let parsed;
     try {

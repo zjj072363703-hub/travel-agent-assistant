@@ -39,12 +39,28 @@ export default function App() {
     setResult(null)
     try {
       const formData = new FormData()
-      files.forEach(f => formData.append('images', f))
-      const endpoint = files.length > 1 ? '/api/analyze-images' : '/api/analyze-image'
+      const isSingle = files.length === 1
+      // 关键修复：单图用 'image' 字段，多图用 'images'，对齐后端 multer
+      files.forEach(f => {
+        formData.append(isSingle ? 'image' : 'images', f)
+      })
+      const endpoint = isSingle ? '/api/analyze-image' : '/api/analyze-images'
       const res = await fetch(`${API}${endpoint}`, { method: 'POST', body: formData })
+      // 关键修复：检查 HTTP 状态码，防止 HTML 错误页导致 JSON.parse 崩溃
+      if (!res.ok) {
+        const errorText = await res.text()
+        let errorMsg = `HTTP Error ${res.status}`
+        try {
+          const parsedError = JSON.parse(errorText)
+          errorMsg = parsedError.error || errorMsg
+        } catch {
+          errorMsg += ': 服务器未能返回有效数据'
+        }
+        throw new Error(errorMsg)
+      }
       const data = await res.json()
       setResult(data)
-    } catch (e) { setResult({ error: e.message }) }
+    } catch (e) { setResult({ error: e.message || '网络连接或解析异常' }) }
     setLoading(false)
   }
 
