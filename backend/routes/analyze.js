@@ -110,16 +110,22 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
 
     const client = getOpenAIClient();
 
-    const prompt = `你是一个旅游咨询分析助手。请分析这张微信聊天截图，提取结构化信息。
+    const prompt = `你是张家界旅游公司资深客服销售专家。请分析这张微信聊天截图，像销售经理一样给出推进成交的建议。
 
 请以JSON格式返回（如果无法确定某字段，填null）：
 {
-  "destination": "想去去的旅游目的地，如张家界、凤凰古城等",
-  "people_count": "出行人数，如2大1小、5人、团队等",
-  "travel_date": "计划出行日期，如5月1日、下周末等",
-  "budget": "预算范围，如3000-5000元、5000元左右",
-  "objections": "客户表达的疑虑或担忧，如价格太高、时间不确定等",
-  "summary": "一段话总结客户咨询的核心需求"
+  "destination": "目的地（必填）",
+  "people_count": "出行人数",
+  "travel_date": "计划日期（如五一出游/端午/具体日期）",
+  "budget": "客户透露的预算或消费层次（高/中/低/未提及）",
+  "objections": "客户的核心疑虑（用一句话描述）",
+  "purchase_signal": "购买信号强不强：高/中/低，并说明理由",
+  "customer_mood": "客户当前情绪：认真考虑中/随便问问/货比三家/急切",
+  "summary": "30字内概括客户此刻的状态",
+  "sales_advice": "销售建议：遇到这类客户正确应对方式（50字内）",
+  "next_sentence": "下一句话术：发一句能推进成交的话，20字以内，直接发给客户用",
+  "urgency": "是否紧迫：五一/端午/暑假等节点临近程度",
+  "sales_tips": ["技巧1","技巧2","技巧3"]
 }`;
 
     const completion = await client.chat.completions.create({
@@ -127,7 +133,7 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+          content: '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
         },
         {
           role: 'user',
@@ -188,22 +194,24 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
     }));
 
     const imgCount = req.files.length;
-    const prompt = `你是一个旅游咨询分析助手。现在有${imgCount}张微信聊天截图（属于同一段对话的连续截图），请按顺序识别并提取所有聊天内容，合并为完整的对话记录，然后输出结构化分析结果。
+    const prompt = `你是张家界旅游公司资深客服销售专家。请分析这${imgCount}张微信聊天截图，像销售经理一样给出推进成交的建议。
 
-注意：
-- 截图可能来自同一对话的不同位置，请完整读取所有文字
-- 如果多张图是同一个人发的连续消息，也要读取
-- 请综合所有截图信息，输出完整分析
+【重要】请完整读取所有${imgCount}张截图的文字，这是同一段对话的连续截图，请按顺序合并信息。
 
 请以JSON格式返回（如果无法确定某字段，填null）：
 {
-  "destination": "想去去的旅游目的地，如张家界、凤凰古城等",
-  "people_count": "出行人数，如2大1小、5人、团队等",
-  "travel_date": "计划出行日期，如5月1日、下周末等",
-  "budget": "预算范围，如3000-5000元、5000元左右",
-  "objections": "客户表达的疑虑或担忧，如价格太高、时间不确定等",
-  "chat_summary": "从截图中提取的完整对话要点（按时间顺序）",
-  "summary": "一段话总结客户咨询的核心需求"
+  "destination": "目的地（必填）",
+  "people_count": "出行人数",
+  "travel_date": "计划日期（如五一出游/端午/具体日期）",
+  "budget": "客户透露的预算或消费层次（高/中/低/未提及）",
+  "objections": "客户的核心疑虑（用一句话描述）",
+  "purchase_signal": "购买信号强不强：高/中/低，并说明理由",
+  "customer_mood": "客户当前情绪：认真考虑中/随便问问/货比三家/急切",
+  "summary": "30字内概括客户此刻的状态",
+  "sales_advice": "销售建议：遇到这类客户正确应对方式（50字内）",
+  "next_sentence": "下一句话术：发一句能推进成交的话，20字以内，直接发给客户用",
+  "urgency": "是否紧迫：五一/端午/暑假等节点临近程度",
+  "sales_tips": ["技巧1","技巧2","技巧3"]
 }`;
 
     content.push({ type: 'text', text: prompt });
@@ -213,7 +221,7 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: '你是一个智能旅行助手后端的API解析器。你的唯一任务是分析内容并输出严格的纯JSON格式数据。不要输出任何解释性文本，不要包含Markdown标记。'
+          content: '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
         },
         {
           role: 'user',
