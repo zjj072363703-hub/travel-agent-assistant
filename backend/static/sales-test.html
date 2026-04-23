@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>销售诊断测试 - TourBoost AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 22px; color: #fff; margin-bottom: 6px; }
+    .subtitle { color: #64748b; font-size: 13px; margin-bottom: 28px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    textarea { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; padding: 14px; resize: vertical; min-height: 220px; font-family: inherit; line-height: 1.6; }
+    textarea:focus { outline: none; border-color: #3b82f6; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #2563eb; }
+    .btn:disabled { background: #1e3a5f; color: #64748b; cursor: not-allowed; }
+    .result { display: none; }
+    .result.show { display: block; }
+    .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .score-item { background: #0f172a; border-radius: 8px; padding: 14px; }
+    .score-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .score-bar { display: flex; align-items: center; gap: 10px; }
+    .score-track { flex: 1; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+    .score-val { font-size: 15px; font-weight: 600; min-width: 40px; text-align: right; }
+    .total-score { text-align: center; padding: 20px; background: #0f172a; border-radius: 10px; margin-bottom: 20px; }
+    .total-score .num { font-size: 52px; font-weight: 700; color: #3b82f6; }
+    .total-score .max { font-size: 20px; color: #475569; }
+    .fatal { background: #0f172a; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #ef4444; }
+    .fatal-title { font-size: 14px; font-weight: 600; color: #f87171; margin-bottom: 8px; }
+    .fatal-quote { font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+    .fatal-quote span { color: #e2e8f0; }
+    .fatal-why { font-size: 13px; color: #fb923c; margin-top: 6px; }
+    .script-item { background: #0f172a; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+    .script-turn { font-size: 11px; color: #3b82f6; text-transform: uppercase; margin-bottom: 8px; }
+    .script-original { font-size: 13px; color: #ef4444; margin-bottom: 6px; }
+    .script-rewritten { font-size: 13px; color: #4ade80; margin-bottom: 6px; }
+    .script-why { font-size: 12px; color: #64748b; }
+    .verdict { background: linear-gradient(135deg, #1e3a5f, #1e293b); border-radius: 10px; padding: 18px 20px; font-size: 15px; color: #fbbf24; text-align: center; margin-top: 16px; line-height: 1.6; }
+    .loading { text-align: center; padding: 40px; color: #64748b; display: none; }
+    .loading.show { display: block; }
+    .loading-dots { animation: pulse 1.4s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .improvement { background: #0f172a; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; font-size: 13px; }
+    .improvement-strategy { color: #4ade80; margin-top: 4px; }
+    .overall { background: #0f172a; border-radius: 8px; padding: 14px; font-size: 14px; color: #e2e8f0; line-height: 1.6; margin-top: 12px; border-left: 3px solid #3b82f6; }
+    h2 { font-size: 16px; color: #fff; margin-bottom: 14px; margin-top: 8px; }
+    .tip { background: #1c2a3a; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #64748b; margin-top: 16px; }
+    .tip span { color: #3b82f6; cursor: pointer; }
+    .tip span:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🔍 销售诊断测试</h1>
+  <p class="subtitle">TourBoost AI · 犀利版 · 5维度评分 + 致命错误诊断</p>
+
+  <div class="card">
+    <div class="label">粘贴客服与客户的完整聊天记录</div>
+    <textarea id="chatInput" placeholder="客：我们张家界玩几天，有什么好推荐吗？
+客：想五一去
+客：大概5天假
+客：你们价格多少
+服：您好！5日游我们2980一个人，包…
+服：行程包括…
+客：好的我考虑一下
+服：好的，有需要随时联系"></textarea>
+    <div style="margin-top: 14px;">
+      <button class="btn" id="sendBtn" onclick="analyze()">
+        <span>🚀</span> 开始诊断
+      </button>
+    </div>
+    <div class="tip">💡 输入越完整，诊断越准确。至少需要20个字符。<span onclick="fillDemo()">填入示例</span></div>
+  </div>
+
+  <div class="loading" id="loading">
+    <div class="loading-dots">分析中，请稍候...</div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="card">
+      <div class="total-score">
+        <div class="label">综合得分</div>
+        <span class="num" id="totalScore">--</span><span class="max"> / 100</span>
+      </div>
+      <div class="scores" id="scoresGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>💀 致命缺点分析</h2>
+      <div id="flawsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>📈 改进策略</h2>
+      <div id="improvementsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>✍️ 销冠话术重构</h2>
+      <div id="scriptsList"></div>
+    </div>
+
+    <div class="verdict" id="verdict"></div>
+    <div class="overall" id="overall"></div>
+  </div>
+
+</div>
+
+<script>
+const API = 'https://travel-agent-vxyp.onrender.com';
+
+function scoreColor(val, max) {
+  const pct = val / max;
+  if (pct >= 0.8) return '#4ade80';
+  if (pct >= 0.5) return '#fbbf24';
+  return '#ef4444';
+}
+
+function analyze() {
+  const chat = document.getElementById('chatInput').value.trim();
+  if (!chat) { alert('请输入聊天记录'); return; }
+
+  const btn = document.getElementById('sendBtn');
+  const loading = document.getElementById('loading');
+  const result = document.getElementById('result');
+
+  btn.disabled = true;
+  loading.classList.add('show');
+  result.classList.remove('show');
+
+  fetch(API + '/api/analyze-sales', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat })
+  })
+  .then(r => r.json())
+  .then(data => {
+    loading.classList.remove('show');
+    result.classList.add('show');
+
+    if (data.error) {
+      result.innerHTML = '<div class="card" style="color:#ef4444">解析失败：' + data.error + '</div>';
+      return;
+    }
+
+    // Scores
+    const s = data.scores || {};
+    const dims = [
+      { key: 'opening', label: '开场破冰' },
+      { key: 'needs_discovery', label: '需求挖掘' },
+      { key: 'objection_handling', label: '异议处理' },
+      { key: 'closing', label: '成交闭环' },
+      { key: 'relationship', label: '关系维护' }
+    ];
+    const total = parseInt(data.total_score) || 0;
+
+    document.getElementById('totalScore').textContent = total;
+    let scoresHtml = '';
+    dims.forEach(d => {
+      const val = parseInt(s[d.key]) || 0;
+      const color = scoreColor(val, 20);
+      scoresHtml += `<div class="score-item">
+        <div class="score-label">${d.label}</div>
+        <div class="score-bar">
+          <div class="score-track"><div class="score-fill" style="width:${val*5}%;background:${color}"></div></div>
+          <div class="score-val" style="color:${color}">${val}/20</div>
+        </div>
+      </div>`;
+    });
+    document.getElementById('scoresGrid').innerHTML = scoresHtml;
+
+    // Fatal flaws
+    let flawsHtml = '';
+    (data.fatal_flaws || []).forEach(f => {
+      flawsHtml += `<div class="fatal">
+        <div class="fatal-title">⚠️ ${f.title}</div>
+        <div class="fatal-quote">客户：<span>"${f.customer_quote}"</span></div>
+        <div class="fatal-quote">销售：<span>"${f.sales_quote}"</span></div>
+        <div class="fatal-why">→ ${f.why_fatal}</div>
+      </div>`;
+    });
+    document.getElementById('flawsList').innerHTML = flawsHtml || '<div class="improvement">未发现明显致命缺点</div>';
+
+    // Improvements
+    let impHtml = '';
+    (data.improvement_strategies || []).forEach((imp, i) => {
+      impHtml += `<div class="improvement">
+        <strong>缺陷${i+1}：</strong>${imp.flaw}
+        <div class="improvement-strategy">✓ ${imp.strategy}</div>
+      </div>`;
+    });
+    document.getElementById('improvementsList').innerHTML = impHtml;
+
+    // Scripts
+    let scriptsHtml = '';
+    (data.rewritten_scripts || []).forEach(sc => {
+      scriptsHtml += `<div class="script-item">
+        <div class="script-turn">${sc.turn}</div>
+        <div class="script-original">❌ ${sc.original}</div>
+        <div class="script-rewritten">✅ ${sc.rewritten}</div>
+        <div class="script-why">→ ${sc.why_better}</div>
+      </div>`;
+    });
+    document.getElementById('scriptsList').innerHTML = scriptsHtml || '<div class="improvement">无需重构</div>';
+
+    document.getElementById('verdict').textContent = data.one_liner_verdict || '';
+    document.getElementById('overall').textContent = data.overall_comment || '';
+
+    // 颜色匹配总分
+    const totalEl = document.getElementById('totalScore');
+    totalEl.style.color = scoreColor(total, 100);
+
+  })
+  .catch(err => {
+    loading.classList.remove('show');
+    result.innerHTML = '<div class="card" style="color:#ef4444">请求失败：' + err.message + '</div>';
+    result.classList.add('show');
+  })
+  .finally(() => {
+    btn.disabled = false;
+  });
+}
+
+function fillDemo() {
+  document.getElementById('chatInput').value = `客：你们张家界玩几天，有什么好推荐吗？
+客：想五一去
+客：大概5天假
+客：你们价格多少
+服：您好！5日游我们2980一个人，包全程用车、门票和住宿
+客：好的我考虑一下
+服：好的，有需要随时联系`;
+}
+</script>
+</body>
+</html>
