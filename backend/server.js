@@ -24,6 +24,9 @@ app.use('/api', statsRouter);
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
+// 销售诊断测试页
+app.get('/sales-test', (req, res) => res.sendFile(path.join(__dirname, 'static', 'sales-test.html')));
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🧳 TourBoost 后端启动 → http://localhost:${PORT}`);
   if (!process.env.KIMI_API_KEY) {
