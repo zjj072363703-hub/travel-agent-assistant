@@ -342,4 +342,111 @@ ${chat}
   }
 });
 
+// ============ POST /api/analyze-sales ============
+// 销售诊断：犀利分析致命错误 + 销冠话术重构
+router.post('/analyze-sales', async (req, res) => {
+  try {
+    const { chat } = req.body;
+
+    if (!chat || chat.trim().length < 20) {
+      return res.status(400).json({ error: '请提供有效的聊天记录（至少20个字符）' });
+    }
+
+    const client = getOpenAIClient();
+
+    const prompt = `你是一名顶尖的销售沟通专家，擅长通过分析聊天记录发现销售人员的致命错误，并提供顾问级的改进策略。
+
+分析以下旅游客服与客户的微信聊天记录，输出一份结构化的诊断报告。
+
+聊天记录：
+${chat}
+
+请严格以JSON格式返回（必须严格遵循格式，不要有任何额外文字）：
+{
+  "scores": {
+    "opening": "开场破冰得分（0-20）",
+    "needs_discovery": "需求挖掘得分（0-20）",
+    "objection_handling": "异议处理得分（0-20）",
+    "closing": "成交闭环得分（0-20）",
+    "relationship": "关系维护得分（0-20）"
+  },
+  "total_score": "总分（0-100）",
+  "fatal_flaws": [
+    {
+      "title": "致命缺点1的小标题",
+      "customer_quote": "客户原话引用（加引号）",
+      "sales_quote": "销售原话引用（加引号）",
+      "why_fatal": "为什么这个做法致命（30字内）"
+    },
+    {
+      "title": "致命缺点2的小标题",
+      "customer_quote": "客户原话引用",
+      "sales_quote": "销售原话引用",
+      "why_fatal": "为什么致命"
+    },
+    {
+      "title": "致命缺点3的小标题",
+      "customer_quote": "客户原话引用",
+      "sales_quote": "销售原话引用",
+      "why_fatal": "为什么致命"
+    }
+  ],
+  "improvement_strategies": [
+    {
+      "flaw": "对应致命缺点标题",
+      "strategy": "新的销售思维和改进方向（50字内）"
+    }
+  ],
+  "rewritten_scripts": [
+    {
+      "turn": "第几句发言",
+      "original": "原销售话术",
+      "rewritten": "销冠级别重构话术",
+      "why_better": "为什么这样改更好（20字内）"
+    }
+  ],
+  "one_liner_verdict": "用一句话对比普通销售与顶尖销售的核心差异",
+  "overall_comment": "整体评价（1-2句话，犀利直接）"
+}`;
+
+    const completion = await client.chat.completions.create({
+      model: 'moonshot-v1-8k',
+      messages: [
+        {
+          role: 'system',
+          content: '你是一名顶尖销售沟通专家，犀利、直接、不客气，能一针见血指出销售致命错误并给出可落地的话术重构。分析必须引用聊天记录原文作为证据。输出必须是严格JSON，不要任何解释性文字。'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.4
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+
+    let cleaned = raw.trim();
+    cleaned = cleaned.replace(/```json/gi, '').replace(/```/g, '');
+    const startIndex = cleaned.indexOf('{');
+    const endIndex = cleaned.lastIndexOf('}');
+    if (startIndex !== -1 && endIndex !== -1) {
+      cleaned = cleaned.substring(startIndex, endIndex + 1);
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return res.status(200).json({ error: 'AI响应解析失败', raw, raw_text: chat });
+    }
+
+    res.json({ ...parsed, raw_text: chat });
+
+  } catch (err) {
+    console.error('analyze-sales error:', err.message);
+    res.status(500).json({ error: '销售诊断分析失败: ' + err.message });
+  }
+});
+
 module.exports = router;
