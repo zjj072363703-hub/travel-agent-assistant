@@ -1,6 +1,17 @@
 const express = require('express');
 const multer = require('multer');
 const OpenAI = require('openai');
+const fs = require('fs');
+const path = require('path');
+
+// 加载旅游行业知识库
+const KNOWLEDGE_BASE = fs.existsSync(path.join(__dirname, '../prompts/tourism-knowledge.md'))
+  ? fs.readFileSync(path.join(__dirname, '../prompts/tourism-knowledge.md'), 'utf8')
+  : '';
+
+const SYSTEM_PREFIX = KNOWLEDGE_BASE
+  ? `【张家界旅游行业知识库，请严格遵循以下知识，禁止混淆任何景区，禁止捏造景点信息。】\n${KNOWLEDGE_BASE}\n`
+  : '';
 
 const router = express.Router();
 
@@ -142,7 +153,7 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
+          content: SYSTEM_PREFIX + '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
         },
         {
           role: 'user',
@@ -239,7 +250,7 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
+          content: SYSTEM_PREFIX + '你是张家界旅游公司资深客服销售专家，拥有10年旅游行业经验和极高成交率。你的任务是分析微信聊天截图，输出能让客服立刻提升成交率的实用建议。输出必须是严格JSON，不要任何解释性文字。'
         },
         {
           role: 'user',
