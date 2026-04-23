@@ -40,13 +40,22 @@ export default function App() {
     try {
       const formData = new FormData()
       const isSingle = files.length === 1
-      // 关键修复：单图用 'image' 字段，多图用 'images'，对齐后端 multer
       files.forEach(f => {
         formData.append(isSingle ? 'image' : 'images', f)
       })
       const endpoint = isSingle ? '/api/analyze-image' : '/api/analyze-images'
-      const res = await fetch(`${API}${endpoint}`, { method: 'POST', body: formData })
-      // 关键修复：检查 HTTP 状态码，防止 HTML 错误页导致 JSON.parse 崩溃
+
+      // 设置90秒超时，防止浏览器放弃连接
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 90000)
+
+      const res = await fetch(`${API}${endpoint}`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      })
+      clearTimeout(timer)
+
       if (!res.ok) {
         const errorText = await res.text()
         let errorMsg = `HTTP Error ${res.status}`
@@ -60,7 +69,13 @@ export default function App() {
       }
       const data = await res.json()
       setResult(data)
-    } catch (e) { setResult({ error: e.message || '网络连接或解析异常' }) }
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setResult({ error: '⏱️ 图片较大，AI分析超时了。请尝试截图更小一些的图片，或稍后重试。' })
+      } else {
+        setResult({ error: e.message || '网络连接或解析异常' })
+      }
+    }
     setLoading(false)
   }
 
@@ -149,7 +164,7 @@ export default function App() {
               <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} />
               <button onClick={() => fileRef.current.click()} disabled={loading}
                 style={{ background: '#38bdf8', color: '#0f172a', border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
-                {loading ? '分析中...' : '📤 上传截图'}
+                {loading ? '⏱ 分析中（请耐心等待，最长90秒）...' : '📤 上传截图'}
               </button>
               <p style={{ color: '#64748b', fontSize: 12, marginTop: 10 }}>支持单图或一次性上传多张（长截图）</p>
             </div>
