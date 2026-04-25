@@ -6,7 +6,7 @@ module.exports = {
   version: '1.0',
   updatedAt: '2026-04-25',
 
-  knowledgeBase: require('./tourism-knowledge.md'),
+  knowledgeBase: require('fs').readFileSync(require('path').join(__dirname,'tourism-knowledge.md'),'utf8'),
 
   systemPrompt() {
     return `${this.knowledgeBase}

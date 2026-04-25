@@ -3,6 +3,7 @@ const multer = require('multer');
 const { generateResponse } = require('../lib/llm-adapter');
 const imagePrompt = require('../prompts/analyze-image');
 const salesPrompt = require('../prompts/analyze-sales');
+const replyMasterPrompt = require('../prompts/reply-master');
 
 const router = express.Router();
 
@@ -137,3 +138,28 @@ router.post('/analyze-sales', async (req, res) => {
 });
 
 module.exports = router;
+
+// ============ POST /api/reply-master ============
+// 三合一话术生成 - 军师模式
+router.post('/reply-master', async (req, res) => {
+  try {
+    const { text, keywords } = req.body;
+    if (!text || text.trim().length < 5) {
+      return res.status(400).json({ error: '请提供聊天记录（至少5个字符）' });
+    }
+
+    const raw = await generateResponse({
+      systemPrompt: replyMasterPrompt.systemPrompt(),
+      prompt: replyMasterPrompt.analyzePrompt(text, keywords || {}),
+      timeout: 60000,
+    });
+
+    const parsed = parseJSON(raw);
+    if (!parsed) return res.status(200).json({ summary: raw, raw_text: text });
+    res.json({ ...parsed, raw_text: text });
+
+  } catch (err) {
+    console.error('reply-master error:', err.message);
+    res.status(500).json({ error: 'AI分析失败: ' + err.message });
+  }
+});
