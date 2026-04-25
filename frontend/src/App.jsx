@@ -7,6 +7,9 @@ const STAGES = ['初询', '需求确认', '方案已发', '价格谈判', '成�
 export default function App() {
   const [view, setView] = useState('home')
   const [result, setResult] = useState(null)
+  const [masterResult, setMasterResult] = useState(null)
+  const [masterLoading, setMasterLoading] = useState(false)
+  const [chatText, setChatText] = useState('')
   const [loading, setLoading] = useState(false)
   const fileRef = useRef()
   const [customers, setCustomers] = useState([])
@@ -100,6 +103,29 @@ export default function App() {
     loadStats()
   }
 
+  async function handleMasterReply() {
+    const text = chatText.trim()
+    if (!text) return
+    setMasterLoading(true)
+    setMasterResult(null)
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 60000)
+      const res = await fetch(API + '/api/reply-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        signal: controller.signal
+      })
+      clearTimeout(timer)
+      const data = await res.json()
+      setMasterResult(data)
+    } catch (e) {
+      setMasterResult({ error: e.name === 'AbortError' ? '⏱️ 超时，请重试' : e.message })
+    }
+    setMasterLoading(false)
+  }
+
   async function handleDeleteCustomer(id) {
     await fetch(`${API}/api/customers/${id}`, { method: 'DELETE' })
     loadCustomers()
@@ -115,7 +141,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', background: '#0f172a', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
       <nav style={{ background: '#1e293b', padding: '14px 24px', display: 'flex', gap: 24, borderBottom: '1px solid #334155', alignItems: 'center' }}>
         <span style={{ fontSize: 18, fontWeight: 700, color: '#38bdf8' }}>🏔️ TourBoost</span>
-        {[['首页', 'home'], ['截图分析', 'analyze'], ['客户列表', 'customers']].map(([label, v]) => (
+        {[['首页', 'home'], ['截图分析', 'analyze'], ['辅助聊天', 'master'], ['客户列表', 'customers']].map(([label, v]) => (
           <button key={v} onClick={() => setView(v)} style={{ background: view === v ? '#38bdf8' : 'transparent', color: view === v ? '#0f172a' : '#94a3b8', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}>{label}</button>
         ))}
       </nav>
@@ -189,6 +215,63 @@ export default function App() {
             {result?.error && (
               <div style={{ marginTop: 16, background: '#2d1b1b', borderRadius: 10, padding: 16, color: '#f87171', border: '1px solid #f8717140' }}>
                 错误：{result.error}
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {view === 'master' && (
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>🎯 辅助聊天</h2>
+            <div style={{ background: '#1e293b', borderRadius: 14, padding: 28, border: '1px solid #334155', marginBottom: 20 }}>
+              <p style={{ color: '#94a3b8', marginBottom: 14 }}>粘贴客服与客户的微信聊天文本，AI 生成一键复制话术</p>
+              <textarea
+                value={chatText}
+                onChange={e => setChatText(e.target.value)}
+                placeholder="粘贴聊天文本，AI生成一键复制话术"
+                style={{ width: '100%', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0', fontSize: 14, padding: '14px', resize: 'vertical', minHeight: 160, fontFamily: 'inherit', lineHeight: 1.6 }}
+              />
+              <div style={{ marginTop: 14 }}>
+                <button onClick={handleMasterReply} disabled={masterLoading}
+                  style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+                  {masterLoading ? '⏱ 生成中...' : '🎯 获取话术'}
+                </button>
+              </div>
+            </div>
+
+            {masterResult && !masterResult.error && (
+              <div style={{ background: '#1e293b', borderRadius: 14, padding: 24, border: '1px solid #16a34a40' }}>
+                <h3 style={{ color: '#16a34a', marginBottom: 16 }}>🎯 话术建议</h3>
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, color: '#86efac', marginBottom: 8 }}>【一键复制话术】👆 点击复制，直接发给客户</div>
+                  <div
+                    onClick={() => navigator.clipboard.writeText(masterResult.reply || '')}
+                    style={{ background: '#16a34a', color: '#fff', borderRadius: 8, padding: '14px 18px', fontSize: 15, fontWeight: 600, cursor: 'pointer', lineHeight: 1.5 }}
+                  >
+                    {masterResult.reply || '(无)'}
+                  </div>
+                </div>
+                {masterResult.opinion && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>📋 专业意见</div>
+                    <div style={{ color: '#e2e8f0', fontSize: 14, lineHeight: 1.6 }}>{masterResult.opinion}</div>
+                  </div>
+                )}
+                {masterResult.logic && (
+                  <div style={{ background: '#0f172a', borderRadius: 8, padding: 12, borderLeft: '3px solid #6366f1' }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>🧠 思维方法</div>
+                    <div style={{ color: '#94a3b8', fontSize: 13, lineHeight: 1.6 }}>{masterResult.logic}</div>
+                  </div>
+                )}
+                <button onClick={() => setShowCustomerModal(true)} style={{ marginTop: 16, background: '#10b981', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  + 保存到客户列表
+                </button>
+              </div>
+            )}
+            {masterResult?.error && (
+              <div style={{ marginTop: 16, background: '#2d1b1b', borderRadius: 10, padding: 16, color: '#f87171', border: '1px solid #f8717140' }}>
+                错误：{masterResult.error}
               </div>
             )}
           </div>
