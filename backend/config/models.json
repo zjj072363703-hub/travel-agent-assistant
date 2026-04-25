@@ -1,0 +1,31 @@
+{
+  "models": {
+    "kimi": {
+      "provider": "openai-compatible",
+      "baseURL": "https://api.moonshot.cn/v1",
+      "apiKeyEnv": "KIMI_API_KEY",
+      "defaultModel": "moonshot-v1-8k-vision-preview",
+      "visionModel": "moonshot-v1-8k-vision-preview",
+      "textModel": "moonshot-v1-chat",
+      "timeout": 120,
+      "maxTokens": 4096
+    },
+    "deepseek": {
+      "provider": "openai-compatible",
+      "baseURL": "https://api.deepseek.com/v1",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "defaultModel": "deepseek-chat",
+      "timeout": 120,
+      "maxTokens": 4096
+    },
+    "minimax": {
+      "provider": "openai-compatible",
+      "baseURL": "https://api.minimaxi.com/v1",
+      "apiKeyEnv": "MINIMAX_API_KEY",
+      "defaultModel": "MiniMax-Text-01",
+      "timeout": 120,
+      "maxTokens": 4096
+    }
+  },
+  "active": "kimi"
+}
