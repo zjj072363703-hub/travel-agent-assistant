@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TourBoost AI 销冠对比图</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  background: #fff;
+  width: 900px;
+}
+.container {
+  display: flex;
+  border: 3px solid #e0e0e0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+/* 左列：失败案例 */
+.left {
+  flex: 1;
+  background: #fff5f5;
+  border-right: 3px solid #e0e0e0;
+  padding: 28px 24px;
+  position: relative;
+}
+.left::before {
+  content: "❌";
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 24px;
+}
+.left-header {
+  font-size: 22px;
+  font-weight: 800;
+  color: #d93025;
+  margin-bottom: 6px;
+}
+.left-sub {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #ffe0e0;
+  padding-bottom: 12px;
+}
+.chat-item {
+  margin-bottom: 16px;
+}
+.chat-role {
+  font-size: 12px;
+  font-weight: 700;
+  color: #666;
+  margin-bottom: 4px;
+}
+.chat-bubble {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+  border: 1px solid #f0f0f0;
+}
+.chat-bubble.customer {
+  border-left: 3px solid #4a90d9;
+}
+.chat-bubble.sales {
+  border-left: 3px solid #888;
+}
+.result-box {
+  margin-top: 24px;
+  background: #ffe0e0;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 14px;
+  color: #c62828;
+  font-weight: 600;
+  text-align: center;
+}
+/* 右列：销冠话术 */
+.right {
+  flex: 1;
+  padding: 28px 24px;
+  background: #f5fff5;
+  position: relative;
+}
+.right::before {
+  content: "✅";
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 24px;
+}
+.right-header {
+  font-size: 22px;
+  font-weight: 800;
+  color: #2e7d32;
+  margin-bottom: 6px;
+}
+.right-sub {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0ffe0;
+  padding-bottom: 12px;
+}
+.chat-item.right-item .chat-bubble {
+  background: #fff;
+  border: 1px solid #e8f5e9;
+}
+.result-box-green {
+  margin-top: 24px;
+  background: #e8f5e9;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 14px;
+  color: #2e7d32;
+  font-weight: 600;
+  text-align: center;
+}
+/* 底部标签 */
+.footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 14px;
+  color: #888;
+  letter-spacing: 2px;
+}
+.footer span {
+  color: #1a73e8;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- 左：失败案例 -->
+  <div class="left">
+    <div class="left-header">失败案例</div>
+    <div class="left-sub">普通销售话术</div>
+
+    <div class="chat-item">
+      <div class="chat-role">👤 客户</div>
+      <div class="chat-bubble customer">五大一小，五一假期去玩，橘子洲、天门山、凤凰古城，多少钱？</div>
+    </div>
+
+    <div class="chat-item">
+      <div class="chat-role">💬 导游天赐</div>
+      <div class="chat-bubble sales">您好！长沙进出六天五晚，三种方式：结伴游1880/人、精品小团2780/人、私家独立小包团…</div>
+    </div>
+
+    <div class="chat-item">
+      <div class="chat-role">👤 客户</div>
+      <div class="chat-bubble customer">太长了，五一就五天假</div>
+    </div>
+
+    <div class="chat-item">
+      <div class="chat-role">💬 导游天赐</div>
+      <div class="chat-bubble sales">还有四天三晚的行程，精品小团长沙进出，但不到凤凰古城</div>
+    </div>
+
+    <div class="result-box">❌ 结果：客户删除好友</div>
+  </div>
+
+  <!-- 右：销冠话术 -->
+  <div class="right">
+    <div class="right-header">销冠话术</div>
+    <div class="right-sub">顾问式销售</div>
+
+    <div class="chat-item right-item">
+      <div class="chat-role">💬 销冠</div>
+      <div class="chat-bubble sales">欢迎！您眼光真好，橘子洲+天门山+凤凰是湖南最经典的线路。五一旺季+五大一小，我强烈建议您做专属商务车小包团，6人最划算，时间紧我帮您做最优路线规划，直接砍凤凰是不专业的方案。请问您高铁票买了吗？</div>
+    </div>
+
+    <div class="result-box-green">✅ 结果：成功签单 · 高客单价</div>
+  </div>
+</div>
+
+<div class="footer">由 <span>TourBoost AI</span> 智能分析生成 · tourboost.cn</div>
+</body>
+</html>

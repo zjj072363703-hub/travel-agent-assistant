@@ -165,7 +165,7 @@ router.post('/analyze-image', upload.single('image'), async (req, res) => {
       ],
       temperature: 0.3
     }, {
-      timeout: 60000,  // 60秒超时，防止视觉模型处理过慢
+      timeout: 120000,  // 60秒超时，防止视觉模型处理过慢
       maxRetries: 1
     });
 
@@ -259,7 +259,7 @@ router.post('/analyze-images', upload.array('images', 10), async (req, res) => {
       ],
       temperature: 0.3
     }, {
-      timeout: 60000,  // 60秒超时，防止视觉模型处理过慢
+      timeout: 120000,  // 60秒超时，防止视觉模型处理过慢
       maxRetries: 1
     });
 

@@ -47,7 +47,7 @@ export default function App() {
 
       // 设置90秒超时，防止浏览器放弃连接
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 90000)
+      const timer = setTimeout(() => controller.abort(), 150000)
 
       const res = await fetch(`${API}${endpoint}`, {
         method: 'POST',
