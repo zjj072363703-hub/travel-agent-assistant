@@ -12,11 +12,14 @@
     .subtitle { color: #64748b; font-size: 13px; margin-bottom: 28px; }
     .card { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
     .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
-    textarea { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; padding: 14px; resize: vertical; min-height: 220px; font-family: inherit; line-height: 1.6; }
+    textarea { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-size: 14px; padding: 14px; resize: vertical; min-height: 120px; font-family: inherit; line-height: 1.6; }
     textarea:focus { outline: none; border-color: #3b82f6; }
+    .textarea-high { min-height: 220px; }
     .btn { display: inline-flex; align-items: center; gap: 8px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 12px 24px; font-size: 15px; cursor: pointer; transition: background 0.2s; }
     .btn:hover { background: #2563eb; }
     .btn:disabled { background: #1e3a5f; color: #64748b; cursor: not-allowed; }
+    .btn-green { background: #16a34a; }
+    .btn-green:hover { background: #15803d; }
     .result { display: none; }
     .result.show { display: block; }
     .scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -51,6 +54,16 @@
     .tip { background: #1c2a3a; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #64748b; margin-top: 16px; }
     .tip span { color: #3b82f6; cursor: pointer; }
     .tip span:hover { text-decoration: underline; }
+
+    /* 军师区域 */
+    .master-card { background: #0f172a; border-radius: 10px; padding: 20px; margin-bottom: 14px; }
+    .master-label { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .master-reply { background: #16a34a; color: #fff; border-radius: 8px; padding: 14px 18px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; margin-bottom: 14px; line-height: 1.5; }
+    .master-reply:hover { background: #15803d; }
+    .master-reply-label { font-size: 11px; color: #86efac; margin-bottom: 6px; font-weight: 400; }
+    .master-opinion { color: #e2e8f0; font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+    .master-logic { color: #94a3b8; font-size: 13px; line-height: 1.6; padding: 12px; background: #1e293b; border-radius: 8px; border-left: 3px solid #6366f1; }
+    .master-copy-hint { font-size: 11px; color: #16a34a; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -61,20 +74,40 @@
 
   <div class="card">
     <div class="label">粘贴客服与客户的完整聊天记录</div>
-    <textarea id="chatInput" placeholder="客：我们张家界玩几天，有什么好推荐吗？
+    <textarea id="chatInput" class="textarea-high" placeholder="客：我们张家界玩几天，有什么好推荐吗？
 客：想五一去
 客：大概5天假
 客：你们价格多少
-服：您好！5日游我们2980一个人，包…
-服：行程包括…
+服：您好！5日游我们2980一个人，包全程用车、门票和住宿
 客：好的我考虑一下
 服：好的，有需要随时联系"></textarea>
-    <div style="margin-top: 14px;">
+    <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <button class="btn btn-green" id="masterBtn" onclick="getMasterReply()">
+        <span>🎯</span> 辅助聊天
+      </button>
       <button class="btn" id="sendBtn" onclick="analyze()">
         <span>🚀</span> 开始诊断
       </button>
     </div>
-    <div class="tip">💡 输入越完整，诊断越准确。至少需要20个字符。<span onclick="fillDemo()">填入示例</span></div>
+    <div class="tip">💡 输入越完整，诊断越准确。<span onclick="fillDemo()">填入示例</span></div>
+  </div>
+
+  <!-- 军师结果 -->
+  <div class="result" id="masterResult">
+    <div class="card">
+      <h2>🎯 辅助聊天 - 下一句话术</h2>
+      <div class="master-card">
+        <div class="master-copy-hint">👆 点击复制，直接发给客户</div>
+        <div class="master-reply" id="masterReply" onclick="copyReply()">
+          <div class="master-reply-label">【一键复制话术】</div>
+          <span id="masterReplyText"></span>
+        </div>
+        <div class="master-label">📋 专业意见</div>
+        <div class="master-opinion" id="masterOpinion"></div>
+        <div class="master-label">🧠 思维方法</div>
+        <div class="master-logic" id="masterLogic"></div>
+      </div>
+    </div>
   </div>
 
   <div class="loading" id="loading">
@@ -121,6 +154,58 @@ function scoreColor(val, max) {
   return '#ef4444';
 }
 
+// 辅助聊天 - 军师模式
+function getMasterReply() {
+  const chat = document.getElementById('chatInput').value.trim();
+  if (!chat) { alert('请输入聊天记录'); return; }
+
+  const btn = document.getElementById('masterBtn');
+  const loading = document.getElementById('loading');
+  const masterResult = document.getElementById('masterResult');
+  const result = document.getElementById('result');
+
+  btn.disabled = true;
+  loading.classList.add('show');
+  masterResult.classList.remove('show');
+  result.classList.remove('show');
+
+  fetch(API + '/api/reply-master', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: chat })
+  })
+  .then(r => r.json())
+  .then(data => {
+    loading.classList.remove('show');
+    masterResult.classList.add('show');
+
+    if (data.error) {
+      masterResult.innerHTML = '<div class="card" style="color:#ef4444">解析失败：' + data.error + '</div>';
+      return;
+    }
+
+    document.getElementById('masterReplyText').textContent = data.reply || '(无)';
+    document.getElementById('masterOpinion').textContent = data.opinion || '(无)';
+    document.getElementById('masterLogic').textContent = data.logic || '(无)';
+  })
+  .catch(err => {
+    loading.classList.remove('show');
+    masterResult.innerHTML = '<div class="card" style="color:#ef4444">请求失败：' + err.message + '</div>';
+    masterResult.classList.add('show');
+  })
+  .finally(() => { btn.disabled = false; });
+}
+
+function copyReply() {
+  const text = document.getElementById('masterReplyText').textContent;
+  if (!text || text === '(无)') return;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('masterReply');
+    el.style.background = '#15803d';
+    setTimeout(() => el.style.background = '', 600);
+  });
+}
+
 function analyze() {
   const chat = document.getElementById('chatInput').value.trim();
   if (!chat) { alert('请输入聊天记录'); return; }
@@ -128,10 +213,12 @@ function analyze() {
   const btn = document.getElementById('sendBtn');
   const loading = document.getElementById('loading');
   const result = document.getElementById('result');
+  const masterResult = document.getElementById('masterResult');
 
   btn.disabled = true;
   loading.classList.add('show');
   result.classList.remove('show');
+  masterResult.classList.remove('show');
 
   fetch(API + '/api/analyze-sales', {
     method: 'POST',
@@ -148,7 +235,6 @@ function analyze() {
       return;
     }
 
-    // Scores
     const s = data.scores || {};
     const dims = [
       { key: 'opening', label: '开场破冰' },
@@ -174,7 +260,6 @@ function analyze() {
     });
     document.getElementById('scoresGrid').innerHTML = scoresHtml;
 
-    // Fatal flaws
     let flawsHtml = '';
     (data.fatal_flaws || []).forEach(f => {
       flawsHtml += `<div class="fatal">
@@ -186,7 +271,6 @@ function analyze() {
     });
     document.getElementById('flawsList').innerHTML = flawsHtml || '<div class="improvement">未发现明显致命缺点</div>';
 
-    // Improvements
     let impHtml = '';
     (data.improvement_strategies || []).forEach((imp, i) => {
       impHtml += `<div class="improvement">
@@ -196,7 +280,6 @@ function analyze() {
     });
     document.getElementById('improvementsList').innerHTML = impHtml;
 
-    // Scripts
     let scriptsHtml = '';
     (data.rewritten_scripts || []).forEach(sc => {
       scriptsHtml += `<div class="script-item">
@@ -211,7 +294,6 @@ function analyze() {
     document.getElementById('verdict').textContent = data.one_liner_verdict || '';
     document.getElementById('overall').textContent = data.overall_comment || '';
 
-    // 颜色匹配总分
     const totalEl = document.getElementById('totalScore');
     totalEl.style.color = scoreColor(total, 100);
 
@@ -221,13 +303,11 @@ function analyze() {
     result.innerHTML = '<div class="card" style="color:#ef4444">请求失败：' + err.message + '</div>';
     result.classList.add('show');
   })
-  .finally(() => {
-    btn.disabled = false;
-  });
+  .finally(() => { btn.disabled = false; });
 }
 
 function fillDemo() {
-  document.getElementById('chatInput').value = `客：你们张家界玩几天，有什么好推荐吗？
+  document.getElementById('chatInput').value = `客：我们张家界玩几天，有什么好推荐吗？
 客：想五一去
 客：大概5天假
 客：你们价格多少
